@@ -11,25 +11,35 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "SPIFFS.h"
+#include "config.h"
+#include "led.h"
 
 // Replace with your network credentials
-const char *ssid = "Teun";
-const char *password = "jezes666";
+const char *ssid = WIFI_SSID;
+const char *password = WIFI_PASSWORD;
+
+// led
+Led led(2);
 
 // ldr
 const int ldrPin = 36;
 
-// led
-bool ledState = 0;
-const int ledPin = 2;
 
-// Create AsyncWebServer object on port 80
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
+void connectToWifi()
+{
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(1000);
+        Serial.println("Connecting to WiFi..");
+    }
+    Serial.println(WiFi.localIP());
+}
+
 
 void notifyClients()
 {
-    ws.textAll(String(ledState));
+    ws.textAll(String(led.GetState()));
 }
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
@@ -40,7 +50,8 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
         data[len] = 0;
         if (strcmp((char *)data, "toggle") == 0)
         {
-            ledState = !ledState;
+
+            led.ToggleState();
             notifyClients();
         }
     }
@@ -72,86 +83,29 @@ void initWebSocket()
     server.addHandler(&ws);
 }
 
-String replacePlaceholder(const String &var)
-{
-    Serial.println(var);
-    if (var == "STATE")
-    {
-        if (ledState)
-        {
-            return "ON";
-        }
-        else
-        {
-            return "OFF";
-        }
-    }
-    return "ERROR";
-}
+
 
 String readLDR()
 {
     return String(analogRead(ldrPin));
 }
 
+
 void setup()
 {
-    // Serial port for debugging purposes
     Serial.begin(115200);
-
-    pinMode(ledPin, OUTPUT);
-    digitalWrite(ledPin, LOW);
     pinMode(ldrPin, INPUT);
 
-    // Connect to Wi-Fi
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(1000);
-        Serial.println("Connecting to WiFi..");
-    }
-
-    // Print ESP Local IP Address
-    Serial.println(WiFi.localIP());
-
+    connectToWifi();
     initWebSocket();
+    initializeSPIFFS();
+    setEndpoints();
 
-    // Initialize SPIFFS
-    if (!SPIFFS.begin(true))
-    {
-        Serial.println("An Error has occurred while mounting SPIFFS");
-        return;
-    }
-
-    // root
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/index.html", String(), false, replacePlaceholder);
-    });
-    // css
-    server.on("/css/index.css", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/css/index.css", "text/css");
-    });
-    // js
-    server.on("/js/index.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/js/index.js", "application/javascript");
-    });
-    server.on("/js/control.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/js/control.js", "application/javascript");
-    });
-    server.on("/js/sensors.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/js/sensors.js", "application/javascript");
-    });
-    // sensor endpoints
-    server.on("/ldr", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send_P(200, "text/plain", readLDR().c_str());
-    });
-
-    // Start server
     server.begin();
 }
 
 void loop()
 {
     ws.cleanupClients();
-    digitalWrite(ledPin, ledState);
+    led.Update();
 }
