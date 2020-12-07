@@ -1,17 +1,8 @@
-#include "ServerHelper.h"
+// Create AsyncWebServer object on port 80
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
 
-ServerHelper::ServerHelper(uint16_t port)
-    : server(port)
-{
-    initializeSPIFFS();
-}
-
-void ServerHelper::addHandler(AsyncWebHandler *handler)
-{
-    server.addHandler(handler);
-}
-
-void ServerHelper::initializeSPIFFS()
+void initializeSPIFFS()
 {
     if (!SPIFFS.begin(true))
     {
@@ -20,7 +11,7 @@ void ServerHelper::initializeSPIFFS()
     }
 }
 
-String ServerHelper::replacePlaceholder(const String &var)
+String replacePlaceholder(const String &var)
 {
     Serial.println(var);
     if (var == "STATE")
@@ -37,7 +28,8 @@ String ServerHelper::replacePlaceholder(const String &var)
     return "ERROR";
 }
 
-void ServerHelper::setEndpoints()
+
+void setEndpoints()
 {
     // root
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -62,3 +54,4 @@ void ServerHelper::setEndpoints()
         request->send_P(200, "text/plain", readLDR().c_str());
     });
 }
+
