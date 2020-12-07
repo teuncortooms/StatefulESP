@@ -1,0 +1,32 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>Sensors</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/index.css">
+    <link rel="icon" href="data:,">
+</head>
+
+<body>
+    <div class="topnav">
+        <h1>Sensors</h1>
+    </div>
+    <div class="content">
+        <div class="card">
+            <h2>LED Control</h2>
+            <p class="state">state: <span id="state">%STATE%</span></p>
+            <p><button id="button" class="button">Toggle</button></p>
+        </div>
+        <div class="card">
+            <h2>LDR</h2>
+            <div id="chart-brightness" class="container"></div>
+        </div>
+    </div>
+    <script src="js/index.js"></script>
+    <script src="js/control.js"></script>
+    <script src="js/sensors.js"></script>
+</body>
+
+</html>
