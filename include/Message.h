@@ -3,21 +3,20 @@
 
 #include "Arduino.h"
 
-enum MessageType
-{
-    LEDSTATE,
-    LDRVALUE
-};
+// enum MessageType
+// {
+//     LEDSTATE,
+//     LDRVALUE
+// };
 
 class Message
 {
-
 public:
-    Message(MessageType type, int value);
+    Message(String type, int value);
     String ToJSON();
 
 private:
-    MessageType Type;
+    String Type;
     int Value;
 };
 

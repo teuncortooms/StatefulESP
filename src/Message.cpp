@@ -1,6 +1,6 @@
 #include "Message.h"
 
-Message::Message(MessageType type, int value)
+Message::Message(String type, int value)
 {
     Type = type;
     Value = value;

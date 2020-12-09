@@ -18,18 +18,20 @@ const char *password = WIFI_PASSWORD;
 // led and ldr
 Led led(2);
 const int ldrPin = 36;
-
-String readLDR();
+unsigned long previousMillis;
+int timeBetweenReading = 100;
 
 // wifi
 void connectToWifi();
 
 // websocket
 void initWebSocket();
-void notifyClientsOfLedState();
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len);
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type,
              void *arg, uint8_t *data, size_t len);
+
+void sendLedState();
+void sendLdrReading();
 
 // http controller
 void initializeSPIFFS();
@@ -108,14 +110,14 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
         if (strcmp((char *)data, "TOGGLE_LED") == 0)
         {
             led.ToggleState();
-            notifyClientsOfLedState();
+            sendLedState();
         }
     }
 }
 
-void notifyClientsOfLedState()
+void sendLedState()
 {
-    Message msg(LEDSTATE, led.GetState());
+    Message msg("LEDSTATE", led.GetState());
     ws.textAll(msg.ToJSON());
 }
 
@@ -142,16 +144,6 @@ void setEndpoints()
     server.on("/js/index.js", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(SPIFFS, "/js/index.js", "application/javascript");
     });
-    server.on("/js/control.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/js/control.js", "application/javascript");
-    });
-    server.on("/js/sensors.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(SPIFFS, "/js/sensors.js", "application/javascript");
-    });
-    // sensor endpoints
-    server.on("/ldr", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send_P(200, "text/plain", readLDR().c_str());
-    });
 }
 
 String replacePlaceholder(const String &var)
@@ -170,14 +162,9 @@ String replacePlaceholder(const String &var)
     return "ERROR";
 }
 
-String readLDR()
-{
-    return String(analogRead(ldrPin));
-}
-
 void sendLdrReading()
 {
     int value = analogRead(ldrPin);
-    Message msg(LDRVALUE, value);
+    Message msg("LDRVALUE", value);
     ws.textAll(msg.ToJSON());
 }
