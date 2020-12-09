@@ -1,33 +1,65 @@
-/*********
-  Rui Santos
-  Complete project details at https://RandomNerdTutorials.com/esp32-websocket-server-arduino/
-  The above copyright notice and this permission notice shall be included in all
-  copies or substantial portions of the Software.
-*********/
-
-// Import required libraries
 #include <Arduino.h>
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "SPIFFS.h"
 #include "config.h"
-#include "led.h"
+#include "Led.h"
+#include "Message.h"
 
-// Create AsyncWebServer object on port 80
+// Create server and websocket
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-// Replace with your network credentials
+// Set credentials in config.h
 const char *ssid = WIFI_SSID;
 const char *password = WIFI_PASSWORD;
 
-// led
+// led and ldr
 Led led(2);
-
-// ldr
 const int ldrPin = 36;
 
+String readLDR();
+
+// wifi
+void connectToWifi();
+
+// websocket
+void initWebSocket();
+void notifyClientsOfLedState();
+void handleWebSocketMessage(void *arg, uint8_t *data, size_t len);
+void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type,
+             void *arg, uint8_t *data, size_t len);
+
+// http controller
+void initializeSPIFFS();
+String replacePlaceholder(const String &var);
+void setEndpoints();
+
+void setup()
+{
+    Serial.begin(115200);
+    pinMode(ldrPin, INPUT);
+
+    connectToWifi();
+    initWebSocket();
+    initializeSPIFFS();
+    setEndpoints();
+
+    server.begin();
+}
+
+void loop()
+{
+    ws.cleanupClients();
+    led.Update();
+
+    if (millis() - previousMillis > timeBetweenReading)
+    {
+        sendLdrReading();
+        previousMillis = millis();
+    }
+}
 
 void connectToWifi()
 {
@@ -40,25 +72,10 @@ void connectToWifi()
     Serial.println(WiFi.localIP());
 }
 
-
-void notifyClients()
+void initWebSocket()
 {
-    ws.textAll(String(led.GetState()));
-}
-
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
-{
-    AwsFrameInfo *info = (AwsFrameInfo *)arg;
-    if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT)
-    {
-        data[len] = 0;
-        if (strcmp((char *)data, "toggle") == 0)
-        {
-
-            led.ToggleState();
-            notifyClients();
-        }
-    }
+    ws.onEvent(onEvent);
+    server.addHandler(&ws);
 }
 
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type,
@@ -67,7 +84,8 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
     switch (type)
     {
     case WS_EVT_CONNECT:
-        Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+        Serial.printf("WebSocket client #%u connected from %s\n", client->id(),
+                      client->remoteIP().toString().c_str());
         break;
     case WS_EVT_DISCONNECT:
         Serial.printf("WebSocket client #%u disconnected\n", client->id());
@@ -81,17 +99,24 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
     }
 }
 
-void initWebSocket()
+void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
 {
-    ws.onEvent(onEvent);
-    server.addHandler(&ws);
+    AwsFrameInfo *info = (AwsFrameInfo *)arg;
+    if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT)
+    {
+        data[len] = 0;
+        if (strcmp((char *)data, "TOGGLE_LED") == 0)
+        {
+            led.ToggleState();
+            notifyClientsOfLedState();
+        }
+    }
 }
 
-
-
-String readLDR()
+void notifyClientsOfLedState()
 {
-    return String(analogRead(ldrPin));
+    Message msg(LEDSTATE, led.GetState());
+    ws.textAll(msg.ToJSON());
 }
 
 void initializeSPIFFS()
@@ -102,24 +127,6 @@ void initializeSPIFFS()
         return;
     }
 }
-
-String replacePlaceholder(const String &var)
-{
-    Serial.println(var);
-    if (var == "STATE")
-    {
-        if (led.GetState())
-        {
-            return "ON";
-        }
-        else
-        {
-            return "OFF";
-        }
-    }
-    return "ERROR";
-}
-
 
 void setEndpoints()
 {
@@ -147,22 +154,30 @@ void setEndpoints()
     });
 }
 
-
-void setup()
+String replacePlaceholder(const String &var)
 {
-    Serial.begin(115200);
-    pinMode(ldrPin, INPUT);
-
-    connectToWifi();
-    initWebSocket();
-    initializeSPIFFS();
-    setEndpoints();
-
-    server.begin();
+    if (var == "STATE")
+    {
+        if (led.GetState())
+        {
+            return "ON";
+        }
+        else
+        {
+            return "OFF";
+        }
+    }
+    return "ERROR";
 }
 
-void loop()
+String readLDR()
 {
-    ws.cleanupClients();
-    led.Update();
+    return String(analogRead(ldrPin));
+}
+
+void sendLdrReading()
+{
+    int value = analogRead(ldrPin);
+    Message msg(LDRVALUE, value);
+    ws.textAll(msg.ToJSON());
 }

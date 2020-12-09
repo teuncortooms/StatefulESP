@@ -16,14 +16,17 @@ function onClose(event) {
     setTimeout(initWebSocket, 2000);
 }
 function onMessage(event) {
+    var msg = JSON.parse(event.data);
     var state;
-    if (event.data == "1") {
-        state = "ON";
+    if (msg.type = "LEDSTATE") {
+        if (msg.value == "1") {
+            state = "ON";
+        }
+        else {
+            state = "OFF";
+        }
+        document.getElementById('state').innerHTML = state;
     }
-    else {
-        state = "OFF";
-    }
-    document.getElementById('state').innerHTML = state;
 }
 function onLoad(event) {
     initWebSocket();
@@ -33,5 +36,5 @@ function initButton() {
     document.getElementById('button').addEventListener('click', toggle);
 }
 function toggle() {
-    websocket.send('toggle');
+    websocket.send('TOGGLE_LED');
 }
