@@ -2,13 +2,13 @@
 
 Message::Message(String type, int value)
 {
-    Type = type;
-    Value = value;
+    type = type;
+    value = value;
 }
 
 String Message::ToJSON()
 {
-    String type = String(Type);
-    String value = String(Value);
-    return "{\"type\":\"" + type + "\",\"value\":\"" + value + "\"}";
+    String t = String(t);
+    String v = String(v);
+    return "{\"type\":\"" + t + "\",\"value\":\"" + v + "\"}";
 }

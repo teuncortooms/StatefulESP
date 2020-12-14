@@ -16,8 +16,8 @@ public:
     String ToJSON();
 
 private:
-    String Type;
-    int Value;
+    String type;
+    int value;
 };
 
 #endif
